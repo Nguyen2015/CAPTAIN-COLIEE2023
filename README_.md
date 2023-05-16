@@ -1,6 +1,4 @@
-# CAPTAIN at COLIEE 2023: Efficient Methods for Legal Information Retrieval and Entailment Tasks 
-
-The Competition on Legal Information Extraction/Entailment (COLIEE) is held annually to encourage advancements in the automatic processing of legal texts. Processing legal documents is challenging due to the intricate structure and meaning of legal language. In this paper, we outline our strategies for tackling Task 2, Task 3, and Task 4 in the COLIEE 2023 competition. Our approach involved utilizing appropriate state-of-the-art deep learning methods, designing methods based on domain characteristics observation, and applying meticulous engineering practices and methodologies to the competition. As a result, our performance in these tasks has been outstanding, with first places in Task 2 and Task 3, and promising results in Task 4.
+# Coliee Task3
 
 ## Data
 - structure of data directory (same structure between enlgish and japanese datasets)
@@ -59,21 +57,3 @@ pip install -r requirements.txt
             ```
       3. infer and evaluation  
 
-
-## Citation
- 
-updating ...
-<!-- ```bib
-@Article{Nguyen2022,
-    author={Nguyen, Phuong Minh
-    and Le, Tung
-    and Nguyen, Huy Tien
-    and Tran, Vu
-    and Nguyen, Minh Le},
-    title={PhraseTransformer: an incorporation of local context information into sequence-to-sequence semantic parsing},
-    journal={Applied Intelligence},
-}
-```
- -->
-##  License
-MIT-licensed. 
