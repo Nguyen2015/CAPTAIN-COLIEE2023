@@ -4,9 +4,17 @@ The Competition on Legal Information Extraction/Entailment (COLIEE) is held annu
 ---
 
 ## Results
-These results is provided by COLIEE organization evaluated on the private test sets. Please visit [COLIEE 2023](https://sites.ualberta.ca/~rabelo/COLIEE2023/) for the legal-tasks information. 
+These results is provided by COLIEE organization evaluated on the private test sets. Please visit [COLIEE 2023](https://sites.ualberta.ca/~rabelo/COLIEE2023/) for more information about the legal-tasks. 
 
-- Task 2 final result (first rank).
+- **Task 2 (first place): The Legal Case Entailment task**
+
+    This task involves the identification of a paragraph from existing cases that entails the decision of a new case.
+
+    Given a decision Q of a new case and a relevant case R, a specific paragraph that entails the decision Q needs to be identified. We confirmed that the answer paragraph can not be identified merely by information retrieval techniques using some examples. Because the case R is a relevant case to Q, many paragraphs in R can be relevant to Q regardless of entailment.
+
+    This task requires one to identify a paragraph which entails the decision of Q, so a specific entailment method is required which compares the meaning of each paragraph in R and Q in this task. 
+
+
     
     | Run                  | F1 (\%) | Precision (\%) | Recall (\%) |
     |----------------------------|------------------|-------------------------|----------------------|
@@ -23,7 +31,16 @@ These results is provided by COLIEE organization evaluated on the private test s
     ...
 
 
-- Task 3 final result (first rank).
+- **Task 3 (first place): The Statute Law Retrieval Task**
+
+    The COLIEE statute law competition focuses on two aspects of legal information processing related to answering yes/no questions from Japanese legal bar exams (the relevant data sets have been translated from Japanese to English).
+
+    Task 3 of the legal question answering task involves reading a legal bar exam question Q, and extracting a subset of Japanese Civil Code Articles S1, S2,..., Sn from the entire Civil Code which are those appropriate for answering the question such that
+
+    Entails(S1, S2, ..., Sn , Q) or Entails(S1, S2, ..., Sn , not Q).
+
+    Given a question Q and the entire Civil Code Articles, we have to retrieve the set of "S1, S2, ..., Sn" as the answer of this track. 
+
 
     | Run            | F2    | P     | R     | MAP   | R5    | R10   | R30   |
     |-------------------------|----------------|----------------|----------------|----------------|----------------|----------------|----------------|
@@ -36,7 +53,13 @@ These results is provided by COLIEE organization evaluated on the private test s
     | UA.TfIdf\_threshold2    | 56.42          | 62.05          | 56.44          | 65.51          | 66.92          | 79.23          | 84.62          |
     ...
 
-- Task 4 final result.
+- **Task 4: The Legal Textual Entailment Data Corpus**
+
+    Task 4 of the legal textual entailment task involves the identification of an entailment relationship such that
+
+    Entails(S1, S2, ..., Sn , Q) or Entails(S1, S2, ..., Sn , not Q). 
+
+    Given a question Q, we have to retrieve relevant articles S1, S2, ..., Sn through phase one, and then we have to determine if the relevant articles entail "Q" or "not Q". The answer of this track is binary: "YES"("Q") or "NO"("not Q").
 
     | Run            | Accuracy (\%) |
     |-----------------------|------------------------|
