@@ -141,18 +141,17 @@ pip install -r requirements.txt
 
 ## Citation
  
-updating ...
-<!-- ```bib
-@Article{Nguyen2022,
-    author={Nguyen, Phuong Minh
-    and Le, Tung
-    and Nguyen, Huy Tien
-    and Tran, Vu
-    and Nguyen, Minh Le,
-    title={PhraseTransformer: an incorporation of local context information into sequence-to-sequence semantic parsing,
-    journal={Applied Intelligence,
-
+```bib
+@inproceedings{CAPTAIN_AT_COLIEE_2023, 
+author = {Chau Nguyen, Phuong Nguyen, Thanh Tran, Dat Nguyen, An Trieu, Tin Pham, Anh Dang, Le-Minh Nguyen}, 
+title = {CAPTAIN at COLIEE 2023: Efficient Methods for Legal Information Retrieval and Entailment Tasks}, 
+year = {2023}, 
+publisher = {Association for Computing Machinery}, 
+booktitle = {Proceedings of the Seventeenth International Conference on Artificial Intelligence and Law}, 
+url = {http://research.nii.ac.jp/~ksatoh/COLIEE2023proceedings.pdf},
+series = {ICAIL '23} 
+}
 ```
- -->
+ 
 ##  License
 MIT-licensed. 
