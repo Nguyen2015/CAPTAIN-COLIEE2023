@@ -6,7 +6,7 @@ fugashi
 mecab-python3
 packaging==21.3
 unidic-lite
-transformers==4.3.2
+transformers
 openpyxl
 torch
 xlwt
@@ -18,3 +18,5 @@ tensorboardX
 tensorboard
 rank_bm25
 seaborn
+pandas
+pytorch_lightning

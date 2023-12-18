@@ -8,9 +8,9 @@ import fugashi
 import pandas as pd
 import argparse
 
-from data_utils.stopwords_tfidf_generator import do_generate_stopwords
-from data_utils.tfidf_classifier import do_classify
-from data_utils.utils import load_data_coliee, postag_filter
+from stopwords_tfidf_generator import do_generate_stopwords
+from tfidf_classifier import do_classify
+from utils import load_data_coliee, postag_filter
 
 # The Tagger object holds state about the dictionary.
 jp_tagger = fugashi.Tagger()

@@ -120,11 +120,15 @@ pip install -r requirements.txt
             Output (recall score is important)
             ```
             ...
-            - 954 116400 1003 P:  0.008195876288659793 R:  0.9511465603190429 F1:  0.016251714181068626 F2:  0.03961399196093413  # eval train set using tfidf top 150
-            Number data pairs:  116449
-            - 128 16650 138 P:  0.0076876876876876875 R:  0.927536231884058 F1:  0.015248987371932332 F2:  0.03720497616556215  # eval valid set using tfidf top 150
-            Number data pairs:  16650 
-            - len(train_data_pairs_id), len(test_data_pairs_id), len(dev_data_pairs_id) =  116449 16650 16650
+            127 16350 131 P:  0.0077675840978593275 R:  0.9694656488549618 F1:  0.015411686184090771 F2:  0.037631859665757966
+            [W] Learning Tfidf Vectorizer ...
+            970 120900 1040 P:  0.008023159636062862 R:  0.9326923076923077 F1:  0.0159094636706577 F2:  0.03878138493523109
+            Number data pairs:  120970
+            127 16350 131 P:  0.0077675840978593275 R:  0.9694656488549618 F1:  0.015411686184090771 F2:  0.037631859665757966
+            Number data pairs:  16350
+            99 12150 101 P:  0.008148148148148147 R:  0.9801980198019802 F1:  0.01616194596359481 F2:  0.039429663852158674
+            Number data pairs:  12150
+            len(train_data_pairs_id), len(test_data_pairs_id), len(dev_data_pairs_id) =  120970 16350 12150
             ```
       2. train model by finetuning BERT or pretrained Japanese model (https://huggingface.co/cl-tohoku/bert-base-japanese-v2 or https://huggingface.co/cl-tohoku/bert-base-japanese-whole-word-masking )
             ```bash
@@ -136,7 +140,15 @@ pip install -r requirements.txt
             ```
              mkdir settings && qsub scripts/train_new.sh
             ```
-      3. infer and evaluation  
+            after run all, all aodel checkpoint are generated, the enssemble method is output of setting `Mckpt` in paper. 
+      3. infer and evaluation 
+            ```bash
+            # infer 
+            conda activate env_coliee && python  src/evaluate.py --input_test data/TestData_en_r04.xml --input_prediction settings/bert-base-japanese-whole-word-masking_new2_top150-newE5Seq512L2e-5/models/CAPTAIN.allEnss.R04.enss.tsv --civi_code_path data/parsed_civil_code/en_civil_code.json 
+            ```
+            where `data/TestData_en_r04.xml` is R04 orgininal gold test data.
+
+
 
 
 ## Citation

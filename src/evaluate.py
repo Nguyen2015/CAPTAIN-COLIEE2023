@@ -18,8 +18,8 @@ def parse_args():
 
     parser.add_argument('--log_dir', default=None)
     
-    parser.add_argument('--input_test', default='/home/phuongnm/coliee/data/COLIEE2023statute_data-English/train/riteval_R03_en.xml')
-    parser.add_argument('--input_prediction', default='/home/phuongnm/coliee/settings/bert-base-japanese-whole-word-masking_5ckpt_150-newE5Seq512L2e-5/datout/test_R03.txt')
+    parser.add_argument('--input_test', default='/home/phuongnm/coliee/data/COLIEE2023statute_data-English/train/riteval_R04_en.xml')
+    parser.add_argument('--input_prediction', default='/home/phuongnm/coliee/data/captain_sub_2023/CAPTAIN.bjpAll.R04.enss.tsv')
     parser.add_argument('--civi_code_path', default='/home/phuongnm/coliee/libs/statute_law_IR/data/parsed_civil_code/en_civil_code.json')
     parser.add_argument('--usecase_only', action='store_true', default=False)
     parser.add_argument('--log_correct_prediction', action='store_true', default=False)
@@ -46,6 +46,13 @@ def evaluate(INPUT_TEST, INPUT_PREDICTION, USECASE_ONLY,
     id2art = df.groupby('id')['art_id'].apply(list).to_dict()
     id2rank = df.groupby('id')['rank'].apply(list).to_dict()
     predicted = id2art
+    
+    error_id_by_coliee_organization = ['R04-01-A', 'R04-01-O', 'R04-02-I', 'R04-33-A', 'R04-04-E']
+    for s_id in error_id_by_coliee_organization:
+        if s_id in predicted:
+            predicted.pop(s_id)
+        if s_id in result:
+            result.pop(s_id)
 
     f2_track = []
     returnn = 0

@@ -119,7 +119,7 @@ def _parse_article_text(article_text):
 
 
 def _parse_article_fix(article_text):
-    return re.findall('(?<=^Article )([^ \n]+)', article_text, re.MULTILINE)
+    return re.findall('(?<=^Article )([^ (\n]+)', article_text, re.MULTILINE)
 
 
 def load_samples(filexml, file_alignment=None):
@@ -134,6 +134,8 @@ def load_samples(filexml, file_alignment=None):
             sample = {'result': []}
             for j, e in enumerate(root[i]):
                 if e.tag == "t1":
+                    if root[i].attrib['id'] == 'R04-36-E':
+                        print()
                     sample['result'] = _parse_article_fix(e.text.strip())
                 elif e.tag == "t2":
                     question = e.text.strip()

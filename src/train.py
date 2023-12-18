@@ -95,7 +95,7 @@ if __name__=="__main__":
     
     # trainer
     checkpoint_callback = ModelCheckpoint(dirpath=opts.log_dir, save_top_k=opts.max_keep_ckpt, 
-                                          auto_insert_metric_name=True, mode="max", monitor="valid_f2", 
+                                          auto_insert_metric_name=True, mode="max", monitor="dev/valid_f2", 
                                         #   every_n_train_steps=opts.ckpt_steps
                                           )
     trainer = Trainer(max_epochs=opts.max_epochs, 
@@ -116,6 +116,7 @@ if __name__=="__main__":
     if not opts.no_dev: data_sources.append(dev_loader)
     if not opts.no_test: data_sources.append(test_loader);  data_sources.append(test2_loader)
 
+    main_model_ckpt = None
     for data_loader in data_sources: 
         all_predictions = []
         result_combination = []
@@ -124,6 +125,7 @@ if __name__=="__main__":
         best_predictions = {'retrieved': 0, 'valid_f2': 0, 'valid_p': 0,'valid_r': 0, 'miss_q':[]}
         best_miss = set()
         data_query_id = data_loader.dataset[0][1][:3]
+        best_model_ckpt_by_dev = None
 
         for ckpt in pretrained_checkpoint_list:
             model.result_logger.info(f"==== Predict ({ckpt}) ====")
@@ -134,21 +136,27 @@ if __name__=="__main__":
             else:
                 predictions = pickle.load(open(predictions_cache_name, "rb"))
 
-            cur_checkpoint_ret = model.validation_epoch_end(predictions, no_log_tensorboard=True)
+            cur_checkpoint_ret = model.on_epoch_end(predictions, no_log_tensorboard=True)
             cur_checkpoint_ret.pop('detail_pred')
             model.result_logger.info(f"{cur_checkpoint_ret}")
             all_miss_q = all_miss_q.union(set(cur_checkpoint_ret['miss_q']))
-            if  len(best_f2_ret["miss_q"]) > len(cur_checkpoint_ret['miss_q']): #"=2-step=10964" in ckpt: # 
+            if len(best_f2_ret["miss_q"]) > len(cur_checkpoint_ret['miss_q']): # main_model_ckpt is None and best_f2_ret["valid_f2"] < cur_checkpoint_ret['valid_f2']: # "10964.ckpt" in ckpt: #  
+                best_predictions = predictions
+                best_miss =  set(cur_checkpoint_ret['miss_q'])
+                best_f2_ret = cur_checkpoint_ret
+                best_model_ckpt_by_dev = ckpt
+            elif main_model_ckpt == ckpt:
                 best_predictions = predictions
                 best_miss =  set(cur_checkpoint_ret['miss_q'])
                 best_f2_ret = cur_checkpoint_ret
             all_predictions += predictions
 
-        out = model.validation_epoch_end(all_predictions, no_log_tensorboard=True, main_prediction_enss=(best_miss, best_predictions))
+        main_model_ckpt = main_model_ckpt or best_model_ckpt_by_dev 
+        out = model.on_epoch_end(all_predictions, no_log_tensorboard=True, main_prediction_enss=(best_miss, best_predictions))
 
         # log
         json.dump(out['detail_pred'], open(f'{opts.log_dir}/{data_query_id}.detail_pred.json', 'wt'), ensure_ascii=False)
-        print(out["valid_f2"])
+        print(out["valid_f2"], out["valid_p"], out["valid_r"])
 
         # dump submission files: file retrieved and file top 100 candidates 
         generate_file_submission(out['detail_pred'], 
@@ -171,7 +179,7 @@ if __name__=="__main__":
                                  limited_prediction=100)
         
         # enssemble model 
-        main_pred_file = opts.main_enss_path.format(data_query_id)
+        main_pred_file = f"{opts.log_dir}/CAPTAIN.{opts.file_output_id}.{data_query_id}.tsv" # opts.main_enss_path.format(data_query_id) 
         if os.path.exists(main_pred_file):
 
             def enss_procedure(main_pred_file, addition_pred_files, output_file, addition_limit=None, relevant_limit=None):
