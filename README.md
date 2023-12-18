@@ -125,7 +125,7 @@ pip install -r requirements.txt
             # R02, R03, R04 should be in folder data `data/COLIEE2023statute_data-English/` and `data/COLIEE2023statute_data-Japanese/`
             python src/data_utils/data_generator.py --path_folder_base data/COLIEE2023statute_data-Japanese/ --meta_data_alignment data/COLIEE2023statute_data-English/ --path_output_dir data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02r03_r04/ --lang jp --topk 150 --type_data task3 --dev_ids R02 R03 --test_ids R04 
 
-            cp  data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02r03_r04/test.csv /home/phuongnm/coliee2024/data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03/test_submit.csv
+            cp  data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02r03_r04/test.csv data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03/test_submit.csv
 
             ``` 
             Output (recall score is important)
