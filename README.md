@@ -98,7 +98,9 @@ Please visit [COLIEE 2023](https://sites.ualberta.ca/~rabelo/COLIEE2023/) for wh
         └── train
             ├── riteval_H18_en.xml
             ├── ...
-            └── riteval_R01_en.xml
+            ├── riteval_R02_jp.xml
+            ├── riteval_R03_jp.xml
+            └── riteval_R04_jp.xml
     ```
 
 ## Environments
@@ -115,7 +117,16 @@ pip install -r requirements.txt
       1. generate data, extract raw data from COLIEE competition to the `.json` and `.csv` data for training process: 
             
             ```bash
-            conda activate env_coliee && cd src/ && python src/data_generator.py --path_folder_base data/COLIEE2023statute_data-Japanese/ --meta_data_alignment data/COLIEE2023statute_data-English/ --path_output_dir data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03/ --lang jp --topk 150 --type_data task3 --dev_ids R02 --test_ids R03  
+            conda activate env_coliee  
+
+            # R02, R03 should be in folder data `data/COLIEE2023statute_data-English/` and `data/COLIEE2023statute_data-Japanese/`
+            python src/data_utils/data_generator.py --path_folder_base data/COLIEE2023statute_data-Japanese/ --meta_data_alignment data/COLIEE2023statute_data-English/ --path_output_dir data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03/ --lang jp --topk 150 --type_data task3 --dev_ids R02 --test_ids R03  
+
+            # R02, R03, R04 should be in folder data `data/COLIEE2023statute_data-English/` and `data/COLIEE2023statute_data-Japanese/`
+            python src/data_utils/data_generator.py --path_folder_base data/COLIEE2023statute_data-Japanese/ --meta_data_alignment data/COLIEE2023statute_data-English/ --path_output_dir data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02r03_r04/ --lang jp --topk 150 --type_data task3 --dev_ids R02 R03 --test_ids R04 
+
+            cp  data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02r03_r04/test.csv /home/phuongnm/coliee2024/data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03/test_submit.csv
+
             ``` 
             Output (recall score is important)
             ```
