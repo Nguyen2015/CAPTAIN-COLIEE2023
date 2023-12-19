@@ -54,6 +54,9 @@ class RelevantDocClassifier(pl.LightningModule):
         self.optimizer = self.args.optimizer
         self.data_train_size = data_train_size
         self.loss_function = F.cross_entropy
+        self.valid_outs = []
+        self.test_outs = []
+        self.prediction_outs = []
 
 
     @staticmethod
@@ -89,25 +92,46 @@ class RelevantDocClassifier(pl.LightningModule):
         return parser
 
 
-    def training_step(self, batch, batch_idx, return_y_hat=False):
+    def training_step(self, batch, batch_idx, return_y_hat=False, add_log=True):
         model_inputs, labels, question_ids, c_ids  = batch
         y_hat = self.model(**model_inputs)
 
         loss = self.loss_function(y_hat, labels)
+        if add_log:
+            self.log('train/loss', loss, prog_bar=True)
+
         if return_y_hat:
             return loss, y_hat
         return loss
+         
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx, prefix_log='dev'):
         model_inputs, labels, question_ids, c_ids  = batch
-        loss, y_hat = self.training_step(batch, batch_idx, return_y_hat=True)
-        self.log("val_batch_loss",loss, prog_bar=True)
-        return {'val_loss_step': loss, 'y_hat': y_hat, 'labels': labels, 'question_ids': question_ids, 'c_ids': c_ids}
+        loss, y_hat = self.training_step(batch, batch_idx, return_y_hat=True, add_log=False)
+        self.log(f"{prefix_log}/loss",loss, prog_bar=True)
+        out = {'val_loss_step': loss, 'y_hat': y_hat, 'labels': labels, 'question_ids': question_ids, 'c_ids': c_ids}
+        self.valid_outs.append(out)
+        return out
+    
+    def test_step(self, batch, batch_idx, prefix_log='test'):
+        model_inputs, labels, question_ids, c_ids  = batch
+        loss, y_hat = self.training_step(batch, batch_idx, return_y_hat=True, add_log=False)
+        self.log(f"{prefix_log}/loss",loss, prog_bar=True)
+        out = {'test_loss_step': loss, 'y_hat': y_hat, 'labels': labels, 'question_ids': question_ids, 'c_ids': c_ids}
+        self.test_outs.append(out)
+        return out
+
+    def on_test_epoch_end(self, **kwargs):
+        batch_parts = self.test_outs
+        self.test_outs = []
+        return self.on_epoch_end(batch_parts=batch_parts, **kwargs)
 
     def predict_step(self, batch, batch_idx):
         model_inputs, labels, question_ids, c_ids  = batch
-        loss, y_hat = self.training_step(batch, batch_idx, return_y_hat=True)
-        return {'val_loss_step': loss, 'y_hat': y_hat, 'labels': labels, 'question_ids': question_ids, 'c_ids': c_ids}
+        loss, y_hat = self.training_step(batch, batch_idx, return_y_hat=True, add_log=False)
+        out = {'val_loss_step': loss, 'y_hat': y_hat, 'labels': labels, 'question_ids': question_ids, 'c_ids': c_ids}
+        self.prediction_outs.append(out)
+        return out
     
     @staticmethod
     def group_by_qid(question_ids, c_ids, relevants, scores):
@@ -124,14 +148,19 @@ class RelevantDocClassifier(pl.LightningModule):
         for question_id in results:
             results[question_id]['rank'].sort(key=lambda x: x[1], reverse=True)
             idx = 0
-            while len(set(results[question_id]['topk'])) < 10:
+            while len(set(results[question_id]['topk'])) < 10 and len(results[question_id]['rank']) > idx:
                 if results[question_id]['rank'][idx][0] not in results[question_id]['topk']:
                     results[question_id]['topk'].append(results[question_id]['rank'][idx][0])
                 idx += 1 
 
         return results
 
-    def validation_epoch_end(self, batch_parts, no_log_tensorboard=False, main_prediction_enss=None):
+    def on_validation_epoch_end(self,  **kwargs):
+        batch_parts = self.valid_outs
+        self.valid_outs = []
+        return self.on_epoch_end(batch_parts=batch_parts, **kwargs)
+    
+    def on_epoch_end(self, batch_parts=None, no_log_tensorboard=False, main_prediction_enss=None, prefix_log='dev'): 
         miss_q, main_prediction = main_prediction_enss if main_prediction_enss is not None else (None, None)
         
         # aggregrate values 
@@ -222,8 +251,8 @@ class RelevantDocClassifier(pl.LightningModule):
             return_results[f'valid_{metric}'] = avg
             
         if not no_log_tensorboard:
-            self.log("retrieved", retrieved, prog_bar=True)
-            self.log("valid_f2", return_results['valid_f2'], prog_bar=True)
+            self.log(f"{prefix_log}/retrieved", retrieved, prog_bar=True)
+            self.log(f"{prefix_log}/valid_f2", return_results['valid_f2'], prog_bar=True)
         self.result_logger.info(f"total_q = {len(gr_gold.keys())}" )
 
         # collect miss query
@@ -232,17 +261,10 @@ class RelevantDocClassifier(pl.LightningModule):
         return_results['detail_pred'] = gr_gold
         self.result_logger.info(f"Miss_querry = {missed_q}" )
         if not no_log_tensorboard:
-            self.log("count_missed_q", len(missed_q))
+            self.log(f"{prefix_log}/count_missed_q", len(missed_q))
 
         return return_results
 
-    def test_step(self, batch, batch_idx):
-        return self.validation_step(batch, batch_idx)
-
-    def test_epoch_end(self, batch_parts):
-        result = self.validation_epoch_end(batch_parts)
-        self.result_logger.info(f"Retrieved = {result['retrieved']}, f2 = {result['valid_f2']}")
-        return result
 
     def configure_optimizers(self):
         """Prepare optimizer and schedule (linear warmup and decay)"""
@@ -288,3 +310,65 @@ class RelevantDocClassifier(pl.LightningModule):
         else:
             raise ValueError
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
+
+
+class RelevantDocClassifierT4(RelevantDocClassifier):
+    def __init__(self, args: argparse.Namespace, data_train_size=None):
+        """Initialize."""
+        super().__init__(args, data_train_size)
+        for i in range(11):
+            for param in self.model.bert.encoder.layer[i].parameters():
+                param.requires_grad = False
+
+    def validation_epoch_end(self, batch_parts, no_log_tensorboard=False, main_prediction_enss=None, prefix_log='dev'):
+        miss_q, main_prediction = main_prediction_enss if main_prediction_enss is not None else (None, None)
+        
+        # aggregrate values 
+        def aggregrate_val(batch_parts):
+            scores = torch.cat([torch.nn.Softmax(dim=1)(batch_output['y_hat'])[:,1] for batch_output in batch_parts],  dim=0)
+            predictions = torch.cat([torch.argmax(batch_output['y_hat'], dim=1) for batch_output in batch_parts],  dim=0)
+            labels = torch.cat([batch_output['labels']  for batch_output in batch_parts],  dim=0)
+            question_ids = []
+            for batch_output in batch_parts:
+                question_ids += batch_output['question_ids']
+ 
+            return predictions, labels, question_ids, scores
+        
+        predictions, labels, question_ids, scores = aggregrate_val(batch_parts)
+        # main_gr_pred = None
+        # if main_prediction is not None:
+        #     pass
+        
+        return_results = {}
+        out_result = labels == predictions
+        count_true = sum(out_result)
+        for metric in ['p']:
+            avg =count_true  / len(labels)
+            return_results[f'valid_{metric}'] = avg
+            
+        if not no_log_tensorboard:
+            self.log(f"{prefix_log}/valid_p", return_results['valid_p'], prog_bar=True)
+            self.log(f"hp/valid_p", return_results['valid_p'], prog_bar=True)
+        self.result_logger.info(f"total_q = {len(question_ids)}" )
+
+        # collect miss query
+        missed_q = []
+        for i, correct in enumerate(out_result):
+            if not correct:
+                missed_q.append(question_ids[i])
+        self.result_logger.info(f"Miss_querry = {missed_q}" )
+        if not no_log_tensorboard:
+            self.log(f"{prefix_log}/count_missed_q", len(missed_q))
+
+        return return_results
+
+    def test_step(self, batch, batch_idx):
+        return self.validation_step(batch, batch_idx, prefix_log='test')
+
+    def test_epoch_end(self, batch_parts):
+        result = self.validation_epoch_end(batch_parts, prefix_log='test')
+        self.result_logger.info(f"test_result = {result['valid_p']}")
+        return result
+
+    def prediction_step(self, batch, batch_idx):
+        return self.validation_step(batch, batch_idx)

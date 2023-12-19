@@ -2,6 +2,17 @@ import re
 import xml.etree.ElementTree as Et
 
 
+
+# def remove_article_head(s):
+#     l = 0
+#     article_search = re.search('(?<=^Article )([^ \n]+)', s)
+#     if article_search:
+#         l += len(article_search.group(0))
+#         l += len('Article ')
+#     return s[l:].lstrip()
+
+
+
 def load_civil_codes(file_path, path_data_alignment=None):
     article_elements = {}
     article_id = None
@@ -24,7 +35,7 @@ def load_civil_codes(file_path, path_data_alignment=None):
             data_l = data_l.strip()
             _l = data_alignment[i]
 
-            if _l.startswith("Civil Code "):
+            if _l.startswith("Civil Code ") or _l.startswith('\ufeffCivil Code '):
                 civil_name = data_l
                 part_name, chapter_name, section_name, subsection_name, division_name, annotated_line = \
                     "", "", "", "", "", ""
@@ -46,9 +57,7 @@ def load_civil_codes(file_path, path_data_alignment=None):
             elif re.fullmatch(r'\([^)]*\)', _l.strip()) is not None:
                 annotated_line = data_l
                 # print("[W] Skip line {}".format(_l))
-            elif "deleted" in _l.lower():
-                pass
-            elif _l.startswith("Article"):
+            elif _l.startswith("Article") and "deleted" not in _l.lower():
                 article_id = re.search(r"Article ([^ ]*) ", _l).group(1)
 
                 # get article content with out id part
@@ -84,7 +93,7 @@ def load_civil_codes(file_path, path_data_alignment=None):
                             "annotated_line": annotated_line,
                             "content": article_content,
                         }
-                    article_elements[article_id]["content"] = article_elements[article_id]["content"] + " \n" + data_l
+                    article_elements[article_id]["content"] = article_elements[article_id]["content"] + " \n " + data_l
                 else:
                     print("[W] error id = {} with text = {}".format(
                         article_id, _l))
@@ -92,21 +101,20 @@ def load_civil_codes(file_path, path_data_alignment=None):
     return article_elements
 
 
-def remove_article_head(s):
-    l = 0
-    article_search = re.search('(?<=^Article )([^ \n]+)', s)
-    if article_search:
-        l += len(article_search.group(0))
-        l += len('Article ')
-    return s[l:].lstrip()
-
-
 def _parse_article_text(article_text):
     article_element = {}
     article_id = None
     for _l in article_text.split("\n"):
         if _l.startswith("Article"):
-            article_id = _l[len("Article "):]
+            article_id_context = re.search(r"Article ([^ \n\(]*)( |\(|$)", _l)
+            article_id = article_id_context.group(1)
+            if "(" in article_id:
+                print(article_id)
+            if len(article_id) == 0 or len(article_id) > 10:
+                raise Exception(f"len(article_id) == 0 or len(article_id) > 10, recognized article_id={article_id} in article_text =\"{article_text}\"")
+            if article_id not in article_element:
+                article_element[article_id] = ""
+            article_element[article_id] = article_element[article_id] + " \n " + _l[len(f'Article {article_id}'):]
         else:
             if article_id is not None:
                 if article_id not in article_element:
@@ -123,7 +131,7 @@ def _parse_article_fix(article_text):
 
 
 def load_samples(filexml, file_alignment=None):
-    try:
+    # try:
         if file_alignment is not None:
             tree_alignment = Et.parse(file_alignment)
             root_alignment = tree_alignment.getroot()
@@ -134,9 +142,13 @@ def load_samples(filexml, file_alignment=None):
             sample = {'result': []}
             for j, e in enumerate(root[i]):
                 if e.tag == "t1":
-                    if root[i].attrib['id'] == 'R04-36-E':
-                        print()
-                    sample['result'] = _parse_article_fix(e.text.strip())
+                    if file_alignment is not None:
+                        article_elements = _parse_article_text(
+                            root_alignment[i][j].text.strip())
+                    else:
+                        article_elements = _parse_article_text(e.text.strip())
+
+                    sample['result'] = list(article_elements.keys())
                 elif e.tag == "t2":
                     question = e.text.strip()
                     sample['content'] = question if len(question) > 0 else None
@@ -150,9 +162,9 @@ def load_samples(filexml, file_alignment=None):
                 print("[Important warning] samples {} is ignored".format(sample))
 
         return samples
-    except Exception as e:
-        print(e)
-        print("[Err] parse tree error {}".format(filexml))
+    # except Exception as e:
+    #     print(e)
+    #     print("[Err] parse tree error {}".format(filexml))
 
 
 def check_is_usecase(q: str):
@@ -162,3 +174,44 @@ def check_is_usecase(q: str):
         if q[i-1] == ' ' and q[i+1] == ' ' and q[i].isupper() and q[i] not in ['A', 'I']:
             return True
     return False
+
+def _article_content(article_info, chunk_content_info=None, tokenizer=None):
+    if chunk_content_info is not None and len(article_info["content"]) > 0:
+        chunk_content_size, chunk_content_stride = chunk_content_info[0], chunk_content_info[1]
+        sub_contents = []
+        full_content = article_info["content"]
+        words = tokenizer(
+            full_content) if tokenizer is not None else full_content.split(" ")
+        separate_w = '' if tokenizer is not None else " "
+
+        if len(words) > chunk_content_size:
+            for i_start in range(0, len(words), chunk_content_size-chunk_content_stride):
+                sub_cont = separate_w.join(
+                    words[i_start:i_start + chunk_content_size])
+                sub_contents.append(sub_cont)
+                if len(words[i_start:i_start + chunk_content_size]) < chunk_content_size:
+                    break
+
+        articles = ["{} {} {} {} {} {} {}".format(article_info["part_name"],
+                                                  article_info["chapter_name"],
+                                                  article_info["section_name"],
+                                                  article_info["subsection_name"],
+                                                  article_info["division_name"],
+                                                  article_info["annotated_line"],
+                                                  full_content, )] + ["{} {} {} {} {} {} {}".format(article_info["part_name"],
+                                                                                                    article_info["chapter_name"],
+                                                                                                    article_info["section_name"],
+                                                                                                    article_info["subsection_name"],
+                                                                                                    article_info["division_name"],
+                                                                                                    article_info["annotated_line"],
+                                                                                                    sub_content) for sub_content in sub_contents]
+        return articles
+
+    else:
+        return ["{} {} {} {} {} {} \n\n\n {}".format(article_info["part_name"],
+                                             article_info["chapter_name"],
+                                             article_info["section_name"],
+                                             article_info["subsection_name"],
+                                             article_info["division_name"],
+                                             article_info["annotated_line"],
+                                             article_info["content"], )]
