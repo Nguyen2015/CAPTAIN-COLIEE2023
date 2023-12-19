@@ -108,8 +108,7 @@ def _parse_article_text(article_text):
         if _l.startswith("Article"):
             article_id_context = re.search(r"Article ([^ \n\(]*)( |\(|$)", _l)
             article_id = article_id_context.group(1)
-            if "(" in article_id:
-                print(article_id)
+
             if len(article_id) == 0 or len(article_id) > 10:
                 raise Exception(f"len(article_id) == 0 or len(article_id) > 10, recognized article_id={article_id} in article_text =\"{article_text}\"")
             if article_id not in article_element:

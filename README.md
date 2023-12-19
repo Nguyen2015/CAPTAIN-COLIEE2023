@@ -125,7 +125,10 @@ pip install -r requirements.txt
             # R02, R03, R04 should be in folder data `data/COLIEE2023statute_data-English/` and `data/COLIEE2023statute_data-Japanese/`
             python src/data_utils/data_generator.py --path_folder_base data/COLIEE2023statute_data-Japanese/ --meta_data_alignment data/COLIEE2023statute_data-English/ --path_output_dir data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02r03_r04/ --lang jp --topk 150 --type_data task3 --dev_ids R02 R03 --test_ids R04 
 
+            # because the train data of `data_ja_topk_150_r02_r03` contained R04, so we need to replace it with train data in `data_ja_topk_150_r02r03_r04` 
             cp  data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02r03_r04/test.csv data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03/test_submit.csv
+
+            cp  data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02r03_r04/train.csv data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03/train.csv
 
             ``` 
             Output (recall score is important)
@@ -155,7 +158,7 @@ pip install -r requirements.txt
       3. infer and evaluation 
             ```bash
             # infer 
-            conda activate env_coliee && python  src/evaluate.py --input_test data/TestData_en_r04.xml --input_prediction settings/bert-base-japanese-whole-word-masking_new2_top150-newE5Seq512L2e-5/models/CAPTAIN.allEnss.R04.enss.tsv --civi_code_path data/parsed_civil_code/en_civil_code.json 
+            conda activate env_coliee && python  src/evaluate.py --input_test data/TestData_en_r04.xml --input_prediction settings/bert-base-japanese-whole-word-masking_new2_top150-newE5Seq512L2e-5/models/CAPTAIN.allEnss.R04.enss.tsv --civi_code_path data/en_civil_code.json 
             ```
             where `data/TestData_en_r04.xml` is R04 orgininal gold test data.
 
