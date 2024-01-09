@@ -168,14 +168,13 @@ pip install -r requirements.txt
 ## Citation
  
 ```bib
-@inproceedings{CAPTAIN_AT_COLIEE_2023, 
-author = {Chau Nguyen, Phuong Nguyen, Thanh Tran, Dat Nguyen, An Trieu, Tin Pham, Anh Dang, Le-Minh Nguyen}, 
-title = {CAPTAIN at COLIEE 2023: Efficient Methods for Legal Information Retrieval and Entailment Tasks}, 
-year = {2023}, 
-publisher = {Association for Computing Machinery}, 
-booktitle = {Proceedings of the Seventeenth International Conference on Artificial Intelligence and Law}, 
-url = {http://research.nii.ac.jp/~ksatoh/COLIEE2023proceedings.pdf},
-series = {ICAIL '23} 
+@misc{nguyen2024captain,
+      title={CAPTAIN at COLIEE 2023: Efficient Methods for Legal Information Retrieval and Entailment Tasks}, 
+      author={Chau Nguyen and Phuong Nguyen and Thanh Tran and Dat Nguyen and An Trieu and Tin Pham and Anh Dang and Le-Minh Nguyen},
+      year={2024},
+      eprint={2401.03551},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
 }
 ```
  
