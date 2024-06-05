@@ -97,8 +97,8 @@ def evaluate(INPUT_TEST, INPUT_PREDICTION, USECASE_ONLY,
         returnn += len(pred)
         retrieved += correct_relevant
 
-        precision = correct_relevant / len(pred)
-        recall = correct_relevant / len(ans)
+        precision = correct_relevant / len(pred) if len(pred) > 0 else 0
+        recall = correct_relevant / len(ans) if len(ans) > 0 else 0
         if precision == 0 or recall == 0:
             f2 = 0
         else:

@@ -5,11 +5,21 @@
     "version": "0.2.0",
     "inputs": [
         {
+            "id": "PATH_LOG",
+            "type": "command",
+            "command": "extension.commandvariable.transform",
+            "args": {
+                "text": "${workspaceFolder}/settings/bert-base-japanese-whole-word-masking_5ckpt_150-newE5Seq512L2e-5/models/",
+                // "text": "${workspaceFolder}/settings/bert-base-japanese_top150-newE5Seq512L1e-5/combination2models/",
+                // "text": "${workspaceFolder}/settings/bert-base-japanese_top150-newE5Seq512L1e-5/models",
+            }
+        },
+        {
             "id": "PATH_DATA",
             "type": "command",
             "command": "extension.commandvariable.transform",
             "args": {
-                "text": "${workspaceFolder}/data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03_regen/",
+                "text": "${workspaceFolder}/data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03/",
             }
         },
         {
@@ -20,6 +30,7 @@
                 // "text": "bert-base-japanese-v22-150",
                 // "text": "bert-base-japanese-whole-word-masking_new2_top150-newE5Seq512L2e-5"
                 "text": "bert-base-japanese-whole-word-masking_5ckpt_150-newE5Seq512L2e-5"
+                // "text": "bert-base-japanese-whole-word-masking_new2_top150-newE5Seq512L2e-5"
                 // "text": "bert-base-japanese-v2_150-newE5Seq512"
             }
         },
@@ -34,6 +45,16 @@
     ],
     "configurations": [ 
         {
+            "name": "---",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/---.py",
+            "cwd": "${workspaceFolder}/",
+            "console": "integratedTerminal",
+            "args": [
+            ]
+        }, 
+        {
             "name": "gen-data",
             "type": "python",
             "request": "launch",
@@ -46,7 +67,7 @@
                 "--meta_data_alignment",
                 "data/COLIEE2023statute_data-English/",
                 "--path_output_dir",
-                "${input:PATH_DATA}",
+                "${input:PATH_DATA}_",
                 "--lang", 
                 "jp", 
                 "--topk", 
@@ -69,6 +90,40 @@
             ]
         }, 
         {
+            "name": "gen-quality-articles",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/data_generator.py",
+            "cwd": "${workspaceFolder}/",
+            "console": "integratedTerminal",
+            "args": [
+                "--gen_quality_article",
+                "--path_detail_prediction",
+                "${workspaceFolder}/settings/${input:SETTING_NAME}/models/",
+                "--path_output_dir",
+                "${input:PATH_DATA}",
+                "--topk", 
+                "10",
+            ]
+        }, 
+        {
+            "name": "gen-similar-queries",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/data_generator.py",
+            "cwd": "${workspaceFolder}/",
+            "console": "integratedTerminal",
+            "args": [
+                "--gen_similar_query",
+                "--path_detail_prediction",
+                "${workspaceFolder}/settings/${input:SETTING_NAME}/models/",
+                "--path_output_dir",
+                "${input:PATH_DATA}",
+                "--topk", 
+                "10",
+            ]
+        }, 
+        {
             "name": "train-task3-new",
             "type": "python",
             "request": "launch",
@@ -77,11 +132,11 @@
             "console": "integratedTerminal",
             "args": [
                 "--data_dir",
-                "${workspaceFolder}/data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r03/",
+                "${input:PATH_DATA}/",
                 "--model_name_or_path", 
-                "cl-tohoku/bert-base-japanese-v2",
+                "cl-tohoku/bert-base-japanese-whole-word-masking",
                 "--log_dir", 
-                "${workspaceFolder}/settings/bert-base-japanese-v2_150-newE5Seq512/models/",
+                "${workspaceFolder}/settings/${input:SETTING_NAME}/models/",
                 // "--pretrained_checkpoint",
                 // "${workspaceFolder}/settings/bert-base-japanese-v2_150-newE5Seq512/models/epoch=4-step=20805.ckpt",
 
@@ -97,46 +152,28 @@
             "console": "integratedTerminal",
             "args": [
                 "--data_dir",
-                "${workspaceFolder}/data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03/",
+                "${input:PATH_DATA}/",
                 "--model_name_or_path", 
-                "cl-tohoku/bert-base-japanese-whole-word-masking",
+                "cl-tohoku/bert-base-japanese-v2",
                 "--log_dir", 
-                "${workspaceFolder}/settings/${input:SETTING_NAME}/models",
-                "--pretrained_checkpoint",
-                "${workspaceFolder}/settings/${input:SETTING_NAME}/models",
+                // "${workspaceFolder}/settings/bert-base-japanese_top150-newE5Seq512L1e-5/models/",
+                // "${workspaceFolder}/settings/bert-base-japanese_top150-newE5Seq512L1e-5/combination2models/",
+                "${input:PATH_LOG}/",
+                // "${workspaceFolder}/settings/bert-base-japanese-whole-word-masking_new2_top150-newE5Seq512L2e-5/models/combination2",
+                // "--pretrained_checkpoint",
+                // "${workspaceFolder}/settings/${input:SETTING_NAME}/models",
                 // "--gpus",
                 // "1",
                 "--no_train",
+                // "--infer_train",
                 // "--no_test"
+                // "--main_enss_path", 
+                // "${workspaceFolder}/settings/bert-base-japanese_top150-newE5Seq512L1e-5/combination2models/CAPTAIN.bjpAll.{}_RerankP.tsv",
                 "--file_output_id", "bjpAll",
+                ">", "${input:PATH_LOG}/eval.log"
             ],
             "justMyCode": false
         },
-        // {
-        //     "name": "evaluate",
-        //     "type": "python",
-        //     "request": "launch",
-        //     "program": "${workspaceFolder}/src/evaluate.py",
-        //     "cwd": "${workspaceFolder}/",
-        //     "console": "integratedTerminal",
-        //     "args": [
-        //         "--test_file",
-        //         "${input:PATH_DATA}/test.csv", 
-        //         "--test_gold_data",
-        //         "data/COLIEE2023statute_data-English/train/riteval_R03_en.xml",
-        //         "--pred_file", 
-        //         "settings/${input:SETTING_NAME}/models/test_results_None.txt", 
-        //         "--topk",
-        //         "3",
-        //         "--ensemble_files",
-        //         "settings/bert-base-japanese-v2-150/models/test_results_None.txt",
-        //         "--task", 
-        //         "task3",
-        //         "--append_unpredicted_q",
-        //         "--run_name", 
-        //         "JNLP.${input:SETTING_NAME}"
-        //     ]
-        // },
         {
             "name": "evaluate-official",
             "type": "python",
@@ -147,12 +184,14 @@
             "args": [
                 "--input_test",
                 // "/home/phuongnm/coliee/data/COLIEE2023statute_data-English/train/riteval_R04_en.xml", 
-                "/home/phuongnm/coliee2024/data/TestData_en_r04.xml", 
+                "${workspaceFolder}/data/COLIEE2023statute_data-English/train/riteval_R05_en.xml", 
                 "--input_prediction",
-                "/home/phuongnm/coliee2024/settings/bert-base-japanese-whole-word-masking_new2_top150-newE5Seq512L2e-5/models/CAPTAIN.allEnss.R04.enss.tsv",
-                // "/home/phuongnm/coliee2024/data/captain_sub_2023/CAPTAIN.allEnssBoostraping.R04.enss.tsv",
+                // "${workspaceFolder}/settings/bert-base-japanese_top150-newE5Seq512L1e-5/models/CAPTAIN.allEnss.R02.enss.tsv",
+                // "${workspaceFolder}/settings/bert-base-japanese_top150-newE5Seq512L1e-5/combination2models/CAPTAIN.bjpAll.R04_RerankPtop3.tsv",
+                "${workspaceFolder}/settings/bert-base-japanese_top150-newE5Seq512L1e-5/combination2models/CAPTAIN.bjpAll.R05_RerankP.tsv",
+                // "${workspaceFolder}/data/captain_sub_2023/CAPTAIN.allEnssBoostraping.R04.enss.tsv",
                 "--civi_code_path", 
-                "/home/phuongnm/coliee/libs/statute_law_IR/data/parsed_civil_code/en_civil_code.json", 
+                "data/en_civil_code.json", 
             ]
         }, 
         {

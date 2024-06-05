@@ -3,7 +3,7 @@ import pickle
 import pandas as pd
 import torch
 from sklearn.metrics import confusion_matrix, accuracy_score
-from data_utils.utils import aggregate_all_results, aggregate_results, generate_file_submission
+from .utils import aggregate_all_results, aggregate_results, generate_file_submission
 
 
 def generate_result_task3():

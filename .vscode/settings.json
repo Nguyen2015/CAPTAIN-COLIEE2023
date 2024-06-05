@@ -39,7 +39,12 @@
         "**/CVS": true,
         "**/.DS_Store": true,
         "**/Thumbs.db": true,
-        "env_*":true
+        "env_*":true,
+        "libs/":true,
+        // "libs/coliee":true,
+        // "libs/statute_law_IR":true,
+        // "libs/legal_text_retrieval":true
 
-    }
+    },
+    "python.analysis.autoImportCompletions": true
 }

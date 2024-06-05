@@ -1,8 +1,8 @@
 import json
 import os
 
-from tfidf_classifier import do_classify
-from utils import load_data_coliee
+from .tfidf_classifier import do_classify
+from .utils import load_data_coliee
 
 
 def do_generate_stopwords(path_folder_base="../coliee3_2020/", threshold=0.02, tokenizer=None, data=None):

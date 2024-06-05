@@ -4,7 +4,6 @@ gensim
 pandas
 fugashi
 mecab-python3
-packaging==21.3
 unidic-lite
 transformers
 openpyxl
@@ -20,3 +19,6 @@ rank_bm25
 seaborn
 pandas
 pytorch_lightning
+accelerate
+bitsandbytes
+sentence_transformers

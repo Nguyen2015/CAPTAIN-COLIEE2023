@@ -50,13 +50,14 @@ if __name__=="__main__":
     parser.add_argument("--max_epochs", default=5, type=int, help="Max training epochs.")
     parser.add_argument("--max_seq_length",  type=int, default=512, help="Max seq length for truncating.")
     parser.add_argument("--no_train", action="store_true", default=False, help="Do not training.")
+    parser.add_argument("--infer_train", action="store_true", default=False, help="predict on train data.")
     parser.add_argument("--no_test", action="store_true", default=False, help="Do not test.")
     parser.add_argument("--no_dev", action="store_true", default=False, help="Do not dev at last.")
     parser.add_argument("--gpus", nargs='+', default=[0], type=int, help="Id of gpus for training")
     parser.add_argument("--ckpt_steps", default=1000, type=int, help="number of training steps for each checkpoint.")
     parser.add_argument("--file_output_id", default="allEnss", type=str, help="Id of submission")
-    parser.add_argument("--civi_code_path", default="data/parsed_civil_code/en_civil_code.json", type=str, help="civil code path")
-    parser.add_argument("--main_enss_path", default="settings/bert-base-japanese-whole-word-masking_5ckpt_150-newE5Seq512L2e-5/datout/test_{}_5_80_0015.txt", type=str, help="Id of submission")
+    # parser.add_argument("--civi_code_path", default="data/parsed_civil_code/en_civil_code.json", type=str, help="civil code path")
+    parser.add_argument("--main_enss_path", default=None, type=str, help="main pred from monoT5")
 
     opts = parser.parse_args()
     if opts.pretrained_checkpoint is not None and not opts.pretrained_checkpoint.endswith(".ckpt"):
@@ -69,23 +70,36 @@ if __name__=="__main__":
         model = RelevantDocClassifier.load_from_checkpoint(opts.pretrained_checkpoint, args=opts)
         max_seq_length=model.args.max_seq_length
     else:
-        config = AutoConfig.from_pretrained(opts.model_name_or_path)
-        config.save_pretrained(opts.log_dir)
-        tokenizer = AutoTokenizer.from_pretrained(opts.model_name_or_path, use_fast=True, max_seq_length=opts.max_seq_length)
-        tokenizer.save_pretrained(opts.log_dir)
+        if os.path.exists(f"{opts.log_dir}/config.json"):
+            config = AutoConfig.from_pretrained(opts.log_dir)
+        else:
+            config = AutoConfig.from_pretrained(opts.model_name_or_path)
+            config.save_pretrained(opts.log_dir)
+            
+        if os.path.exists(f"{opts.log_dir}/tokenizer_config.json"):
+            tokenizer = AutoTokenizer.from_pretrained(opts.log_dir, use_fast=True, config=AutoConfig.from_pretrained(opts.log_dir))
+        else:
+            tokenizer = AutoTokenizer.from_pretrained(opts.model_name_or_path, use_fast=True, max_seq_length=opts.max_seq_length)
+            tokenizer.save_pretrained(opts.log_dir)
         max_seq_length=opts.max_seq_length
 
     #
     # Data loader 
     coliee_data_preprocessor = ColieePreprocessor(tokenizer, max_seq_length=max_seq_length)
     df_train = pd.read_csv(f"{opts.data_dir}/train.csv")
-    train_loader = DataLoader(df_train.values, batch_size=opts.batch_size, collate_fn=coliee_data_preprocessor, shuffle=True)
+    train_loader = DataLoader(df_train.values, batch_size=48, collate_fn=coliee_data_preprocessor, shuffle=True)
     df_dev = pd.read_csv(f"{opts.data_dir}/dev.csv")
     dev_loader = DataLoader(df_dev.values, batch_size=opts.batch_size, collate_fn=coliee_data_preprocessor, shuffle=True)
     df_test = pd.read_csv(f"{opts.data_dir}/test.csv")
     test_loader = DataLoader(df_test.values, batch_size=opts.batch_size, collate_fn=coliee_data_preprocessor, shuffle=True)
-    df_test2 = pd.read_csv(f"{opts.data_dir}/test_submit.csv")
-    test2_loader = DataLoader(df_test2.values, batch_size=opts.batch_size, collate_fn=coliee_data_preprocessor, shuffle=True)
+    test2_loader = None
+    if os.path.exists(f"{opts.data_dir}/test_submit.csv"):
+        df_test2 = pd.read_csv(f"{opts.data_dir}/test_submit.csv")
+        test2_loader = DataLoader(df_test2.values, batch_size=opts.batch_size, collate_fn=coliee_data_preprocessor, shuffle=True)
+    test3_loader = None
+    if os.path.exists(f"{opts.data_dir}/test_submit3.csv"):
+        df_test3 = pd.read_csv(f"{opts.data_dir}/test_submit3.csv")
+        test3_loader = DataLoader(df_test3.values, batch_size=opts.batch_size, collate_fn=coliee_data_preprocessor, shuffle=True)
 
     # model 
     if not opts.pretrained_checkpoint: 
@@ -94,8 +108,10 @@ if __name__=="__main__":
         model.data_train_size = len(train_loader)
     
     # trainer
+    model_id = opts.model_name_or_path.replace("/", '--') 
     checkpoint_callback = ModelCheckpoint(dirpath=opts.log_dir, save_top_k=opts.max_keep_ckpt, 
                                           auto_insert_metric_name=True, mode="max", monitor="dev/valid_f2", 
+                                          filename=model_id+'-{epoch}-{step}',
                                         #   every_n_train_steps=opts.ckpt_steps
                                           )
     trainer = Trainer(max_epochs=opts.max_epochs, 
@@ -114,7 +130,13 @@ if __name__=="__main__":
     model.result_logger.info(pretrained_checkpoint_list)
     data_sources = []
     if not opts.no_dev: data_sources.append(dev_loader)
-    if not opts.no_test: data_sources.append(test_loader);  data_sources.append(test2_loader)
+    if not opts.no_test: 
+        data_sources.append(test_loader)
+        if test2_loader is not None:
+            data_sources.append(test2_loader)
+        if test3_loader is not None:
+            data_sources.append(test3_loader)
+    if opts.infer_train: data_sources.append(train_loader);
 
     main_model_ckpt = None
     for data_loader in data_sources: 
@@ -131,6 +153,8 @@ if __name__=="__main__":
             model.result_logger.info(f"==== Predict ({ckpt}) ====")
             predictions_cache_name = ckpt+f".{data_query_id}.pred.pkl"
             if not os.path.exists(predictions_cache_name):
+                # model = RelevantDocClassifier.load_from_checkpoint(ckpt, args=opts, strict=False )
+                # model = model.cuda()
                 predictions = trainer.predict(model, data_loader, ckpt_path=ckpt)
                 pickle.dump(predictions, open(predictions_cache_name, "wb")) # cached prediction 
             else:
@@ -140,7 +164,7 @@ if __name__=="__main__":
             cur_checkpoint_ret.pop('detail_pred')
             model.result_logger.info(f"{cur_checkpoint_ret}")
             all_miss_q = all_miss_q.union(set(cur_checkpoint_ret['miss_q']))
-            if len(best_f2_ret["miss_q"]) > len(cur_checkpoint_ret['miss_q']): # main_model_ckpt is None and best_f2_ret["valid_f2"] < cur_checkpoint_ret['valid_f2']: # "10964.ckpt" in ckpt: #  
+            if   main_model_ckpt is None and best_f2_ret["valid_f2"] < cur_checkpoint_ret['valid_f2']: #    'step=10964.ckpt' in ckpt : #  len(best_f2_ret["miss_q"]) > len(cur_checkpoint_ret['miss_q']): #   main_model_ckpt is None and best_f2_ret["valid_f2"] < cur_checkpoint_ret['valid_f2']: #    
                 best_predictions = predictions
                 best_miss =  set(cur_checkpoint_ret['miss_q'])
                 best_f2_ret = cur_checkpoint_ret
@@ -177,10 +201,18 @@ if __name__=="__main__":
                                  key_cids="rank_c_ids", 
                                  key_scores="rank_c_scores",
                                  limited_prediction=100)
+        # evaluate
+        input_test = f"data/COLIEE2023statute_data-English/train/riteval_{data_query_id}_en.xml"
+        print(f"Eval: {opts.log_dir}/CAPTAIN.{opts.file_output_id}.{data_query_id}.tsv")
+        if os.path.exists(input_test):
+            evaluate(INPUT_TEST = input_test, 
+                    INPUT_PREDICTION=f"{opts.log_dir}/CAPTAIN.{opts.file_output_id}.{data_query_id}.tsv", 
+                    USECASE_ONLY = False)
+
         
         # enssemble model 
-        main_pred_file = f"{opts.log_dir}/CAPTAIN.{opts.file_output_id}.{data_query_id}.tsv" # opts.main_enss_path.format(data_query_id) 
-        if os.path.exists(main_pred_file):
+        main_pred_file = None if opts.main_enss_path is None else opts.main_enss_path.format(data_query_id)  # f"{opts.log_dir}/CAPTAIN.{opts.file_output_id}.{data_query_id}.tsv" # 
+        if opts.main_enss_path is not None and os.path.exists(main_pred_file):
 
             def enss_procedure(main_pred_file, addition_pred_files, output_file, addition_limit=None, relevant_limit=None):
 
@@ -198,10 +230,10 @@ if __name__=="__main__":
                 # evaluate
                 input_test = f"data/COLIEE2023statute_data-English/train/riteval_{data_query_id}_en.xml"
                 if os.path.exists(input_test):
+                    print(f"Eval: {output_file}")
                     evaluate(INPUT_TEST = input_test, 
                             INPUT_PREDICTION=output_file, 
-                            USECASE_ONLY = False, 
-                            PARSED_CIVIL_CODE_PATH=opts.civi_code_path)
+                            USECASE_ONLY = False)
 
             # enss
             additional_pred_files = [f"{opts.log_dir}/CAPTAIN.{opts.file_output_id}.{data_query_id}.tsv"]

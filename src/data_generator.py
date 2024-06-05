@@ -3,14 +3,23 @@ import os
 import pickle
 import re
 import traceback
+import pandas as pd 
+import json
+import glob 
+import os 
 
 import fugashi
 import pandas as pd
 import argparse
+import logging
+from tqdm import tqdm
 
-from stopwords_tfidf_generator import do_generate_stopwords
-from tfidf_classifier import do_classify
-from utils import load_data_coliee, postag_filter
+from data_utils.stopwords_tfidf_generator import do_generate_stopwords
+from data_utils.tfidf_classifier import do_classify
+from data_utils.utils import load_data_coliee, postag_filter
+from transformers import BertJapaneseTokenizer, BertModel
+import torch
+from sklearn.metrics.pairwise import cosine_similarity
 
 # The Tagger object holds state about the dictionary.
 jp_tagger = fugashi.Tagger()
@@ -18,6 +27,39 @@ jp_tagger = fugashi.Tagger()
 
 def jp_tokenize(text):
     return [word.surface for word in jp_tagger(text)]
+
+class SentenceBertJapanese:
+    def __init__(self, model_name_or_path, device=None):
+        self.tokenizer = BertJapaneseTokenizer.from_pretrained(model_name_or_path)
+        self.model = BertModel.from_pretrained(model_name_or_path)
+        self.model.eval()
+
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch.device(device)
+        self.model.to(device)
+
+    def _mean_pooling(self, model_output, attention_mask):
+        token_embeddings = model_output[0] #First element of model_output contains all token embeddings
+        input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+        return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+
+
+    def encode(self, sentences, batch_size=8):
+        all_embeddings = []
+        iterator = range(0, len(sentences), batch_size)
+        for batch_idx in iterator:
+            batch = sentences[batch_idx:batch_idx + batch_size]
+
+            encoded_input = self.tokenizer.batch_encode_plus(batch, padding="longest", 
+                                           truncation=True, return_tensors="pt").to(self.device)
+            model_output = self.model(**encoded_input)
+            sentence_embeddings = self._mean_pooling(model_output, encoded_input["attention_mask"]).to('cpu')
+
+            all_embeddings.extend(sentence_embeddings.detach().cpu())
+
+        return torch.stack(all_embeddings) 
+        # return torch.stack(all_embeddings)
 
 
 def generate_pair_inputs(data_pred, data_gold, _c_keys, append_gold=False, sub_doc_info=None):
@@ -146,6 +188,102 @@ def gen_mrpc_data(coliee_data_, file_path):
     df = pd.DataFrame(data=data)
     df.to_csv(file_path, index=False, sep=',')
 
+def generate_quality_article(detail_prediction_path, data_folder, top_k=50):
+    topk_filter = {}
+    for file_name in glob.glob(f'{detail_prediction_path}/*.detail_pred.json'):
+        print(file_name)
+
+        file_data = json.load(open(file_name))
+        for q_id, cluster_info in file_data.items():
+            for c_id in list(set(cluster_info['c_ids'] + cluster_info['pred_c_ids_topk']))[:top_k]:
+                topk_filter[f'{q_id}|{c_id}'] = True
+
+
+    for c_file_path in glob.glob(f"{data_folder}/*.csv"):
+        df_data = pd.read_csv(c_file_path)
+
+        def filter_fn(row):
+            return topk_filter.get(f'{row["#1 ID"]}|{row["#2 ID"]}', False)
+                
+        df_filtered = df_data[df_data.apply(filter_fn, axis=1)]
+        file_name = c_file_path.split("/")[-1][:-4]
+        data_out = f"{data_folder}/data_top{top_k}"
+        print(f"Generate quality article in {data_out}/{file_name}.csv")
+        if not os.path.exists(data_out):
+            os.mkdir(data_out)
+        df_filtered.to_csv(open(f"{data_out}/{file_name}.csv", "wt"), index=False, sep=',')
+        print(len(df_filtered))
+
+def generate_similar_query(detail_prediction_path, data_folder, top_k=50):
+    all_miss_q = {}
+    for file_name in glob.glob(f'{detail_prediction_path}/*.detail_pred.json'):
+        logging.info(f"Collect miss query from: {file_name}" )
+        file_data = json.load(open(file_name))
+        for q_id, cluster_info in file_data.items():
+            if len([score for score in cluster_info['pred_c_scores'] if score > 0.5]) == 0 or \
+                (len(cluster_info['pred_c_ids']) > 0 and cluster_info['retrieved'] == 0):
+                if q_id[:3] not in all_miss_q:
+                    all_miss_q[q_id[:3]] = set()
+                all_miss_q[q_id[:3]].add(q_id)
+    logging.info(f"All miss query {all_miss_q}")
+    
+                     
+    df_train = pd.read_csv(f"{data_folder}/train.csv")
+    df_dev = pd.read_csv(f"{data_folder}/dev.csv")
+    df_test = pd.read_csv(f"{data_folder}/test.csv")
+    df_test2 = pd.read_csv(f"{data_folder}/test_submit2.csv")
+    df_all_data = pd.concat([df_train, df_dev, df_test, df_test2])
+ 
+    all_q_ids, all_q_content = df_all_data['#1 ID'].values, df_all_data['sentence1'].values
+    map_q_id2content = dict(zip(all_q_ids, all_q_content))
+    all_q_ids, all_q_content = list(map_q_id2content.keys()), list(map_q_id2content.values())
+    logging.info(f"All queries (total number={len(all_q_ids)}): e.g., {all_q_ids[:10]}, ...")
+    
+    model = SentenceBertJapanese("sonoisa/sentence-bert-base-ja-mean-tokens-v2")
+    sentence_embeddings = model.encode(all_q_content, batch_size=48).numpy()
+    train_sentence_embeddings = sentence_embeddings[:len(set(df_train['#1 ID'].values))]
+
+    similar_q_ids = set()
+    unstable_q_ids = set().union(*all_miss_q.values())
+    logging.info(f"Unstable queries (total number={len(unstable_q_ids)}): e.g., {unstable_q_ids}, ...")
+    
+    logged = False
+    for i, id_q in enumerate(tqdm(all_q_ids)):
+        if id_q in unstable_q_ids:
+            q_vect = sentence_embeddings[i]
+        
+            score = cosine_similarity([q_vect], train_sentence_embeddings)[0]
+            indexes = score.argsort()[-top_k:][::-1]
+            for idx in indexes:
+                similar_q_ids.add(all_q_ids[idx])
+                
+            # logging 
+            if not logged:
+                logging.info(f"Query {id_q} = {map_q_id2content[id_q]}")
+                logging.info("Similar queries:")
+                for idx in indexes: 
+                    logging.info(f"\t{all_q_ids[idx]} = {map_q_id2content[all_q_ids[idx]]}")
+                logged = True
+                
+                
+    filtered_q_ids = set(similar_q_ids).union(unstable_q_ids)
+    logging.info(f"All miss query (total number={len(filtered_q_ids)}): e.g., {list(filtered_q_ids)[:10]}, ...")
+    
+
+    for c_file_path in glob.glob(f"{data_folder}/*.csv"):
+        df_data = pd.read_csv(c_file_path)
+        def filter_fn(row):
+            return row["#1 ID"] in filtered_q_ids
+                
+        df_filtered = df_data[df_data.apply(filter_fn, axis=1)]
+        file_name = c_file_path.split("/")[-1][:-4]
+        data_out = f"{data_folder}/data_sim_q_{top_k}"
+        logging.info(f"Generate similarity queries in {data_out}/{file_name}.csv")
+        if not os.path.exists(data_out):
+            os.mkdir(data_out)
+        df_filtered.to_csv(open(f"{data_out}/{file_name}.csv", "wt"), index=False, sep=',')
+        logging.info(len(df_filtered))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -185,7 +323,25 @@ if __name__ == "__main__":
     parser.add_argument('--faked_result',
                         action="store", dest="faked_result", type=str,
                         help="topk select by tfidf when generating data", default="")
+    parser.add_argument('--path_detail_prediction',
+                        action="store", dest="path_detail_prediction", type=str,
+                        help="path_detail_prediction first step", default=None)
+    parser.add_argument('--gen_quality_article',
+                        action="store_true", dest="gen_quality_article",
+                        help="generate high quality article based on fine-tuned BERT", default=False)
+    parser.add_argument('--gen_similar_query',
+                        action="store_true", dest="gen_similar_query",
+                        help="generate similar queries based on embedding vectors", default=False)
     options = parser.parse_args()
+        # save file csv following template of mrpc task
+    path_folder_data_out = options.path_output_dir
+    if not os.path.exists(path_folder_data_out):
+        os.mkdir(path_folder_data_out)
+        
+    format = '%(asctime)s - %(name)s - %(message)s'
+    if isinstance(options, argparse.Namespace):
+        logging.basicConfig(format=format, filename=os.path.join(options.path_output_dir, "run.log"), level=logging.INFO)
+        print(f"Check log in {os.path.join(options.path_output_dir, 'run.log')}")
 
     path_folder_base = options.path_folder_base
     if options.lang == 'en':
@@ -199,6 +355,14 @@ if __name__ == "__main__":
     else:
         tokenizer = None
 
+    if options.gen_quality_article:
+        generate_quality_article(options.path_detail_prediction, options.path_output_dir, options.topk)
+        exit() 
+        
+    if options.gen_similar_query:
+        generate_similar_query(options.path_detail_prediction, options.path_output_dir, options.topk)
+        exit() 
+    
     chunk_content_info = [options.chunk_content_size,
                           options.chunk_content_stride] \
         if options.chunk_content_size > 0 and options.chunk_content_stride > 0 else None
@@ -212,10 +376,7 @@ if __name__ == "__main__":
                                                                             tokenizer=tokenizer,
                                                                             test_file=options.test_file)
     
-    # save file csv following template of mrpc task
-    path_folder_data_out = options.path_output_dir
-    if not os.path.exists(path_folder_data_out):
-        os.mkdir(path_folder_data_out)
+
         
     json.dump({
         'c_docs': c_docs, 

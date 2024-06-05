@@ -95,8 +95,9 @@ def load_civil_codes(file_path, path_data_alignment=None):
                         }
                     article_elements[article_id]["content"] = article_elements[article_id]["content"] + " \n " + data_l
                 else:
-                    print("[W] error id = {} with text = {}".format(
-                        article_id, _l))
+                    # print("[W] error id = {} with text = {}".format(
+                        # article_id, _l))
+                    pass
 
     return article_elements
 
@@ -120,7 +121,8 @@ def _parse_article_text(article_text):
                     article_element[article_id] = ""
                 article_element[article_id] = article_element[article_id] + " \n " + _l
             else:
-                print("[W] error id = {} with text = {}".format(article_id, _l))
+                # print("[W] error id = {} with text = {}".format(article_id, _l))
+                pass
 
     return article_element
 
@@ -130,7 +132,7 @@ def _parse_article_fix(article_text):
 
 
 def load_samples(filexml, file_alignment=None):
-    # try:
+    try:
         if file_alignment is not None:
             tree_alignment = Et.parse(file_alignment)
             root_alignment = tree_alignment.getroot()
@@ -161,9 +163,9 @@ def load_samples(filexml, file_alignment=None):
                 print("[Important warning] samples {} is ignored".format(sample))
 
         return samples
-    # except Exception as e:
-    #     print(e)
-    #     print("[Err] parse tree error {}".format(filexml))
+    except Exception as e:
+        print(e)
+        print("[Err] parse tree error {}".format(filexml))
 
 
 def check_is_usecase(q: str):
@@ -207,7 +209,7 @@ def _article_content(article_info, chunk_content_info=None, tokenizer=None):
         return articles
 
     else:
-        return ["{} {} {} {} {} {} \n\n\n {}".format(article_info["part_name"],
+        return ["{} {} {} {} {} {} {}".format(article_info["part_name"],
                                              article_info["chapter_name"],
                                              article_info["section_name"],
                                              article_info["subsection_name"],

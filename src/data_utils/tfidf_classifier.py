@@ -3,7 +3,7 @@ import json
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from utils import evaluate, load_data_coliee
+from .utils import evaluate, load_data_coliee
 
 
 def do_classify(c_docs_, c_keys_, test_q_, stopwords_=None, topk=150, vectorizer=None, tokenizer=None):

@@ -12,7 +12,7 @@ import random
 import numpy as np
 from pytorch_lightning import seed_everything
 
-from util_coliee import load_civil_codes, load_samples, _article_content
+from .util_coliee import load_civil_codes, load_samples, _article_content
 
 
 def set_random_seed(seed: int):

@@ -120,10 +120,10 @@ pip install -r requirements.txt
             conda activate env_coliee  
 
             # R02, R03 should be in folder data `data/COLIEE2023statute_data-English/` and `data/COLIEE2023statute_data-Japanese/`
-            python src/data_utils/data_generator.py --path_folder_base data/COLIEE2023statute_data-Japanese/ --meta_data_alignment data/COLIEE2023statute_data-English/ --path_output_dir data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03/ --lang jp --topk 150 --type_data task3 --dev_ids R02 --test_ids R03  
+            python src/data_generator.py --path_folder_base data/COLIEE2023statute_data-Japanese/ --meta_data_alignment data/COLIEE2023statute_data-English/ --path_output_dir data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03/ --lang jp --topk 150 --type_data task3 --dev_ids R02 --test_ids R03  
 
             # R02, R03, R04 should be in folder data `data/COLIEE2023statute_data-English/` and `data/COLIEE2023statute_data-Japanese/`
-            python src/data_utils/data_generator.py --path_folder_base data/COLIEE2023statute_data-Japanese/ --meta_data_alignment data/COLIEE2023statute_data-English/ --path_output_dir data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02r03_r04/ --lang jp --topk 150 --type_data task3 --dev_ids R02 R03 --test_ids R04 
+            python src/data_generator.py --path_folder_base data/COLIEE2023statute_data-Japanese/ --meta_data_alignment data/COLIEE2023statute_data-English/ --path_output_dir data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02r03_r04/ --lang jp --topk 150 --type_data task3 --dev_ids R02 R03 --test_ids R04 
 
             # because the train data of `data_ja_topk_150_r02_r03` contained R04, so we need to replace it with train data in `data_ja_topk_150_r02r03_r04` 
             cp  data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02r03_r04/test.csv data/COLIEE2023statute_data-Japanese/data_ja_topk_150_r02_r03/test_submit.csv
