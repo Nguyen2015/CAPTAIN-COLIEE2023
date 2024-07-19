@@ -22,3 +22,4 @@ pytorch_lightning
 accelerate
 bitsandbytes
 sentence_transformers
+flask
