@@ -1,6 +1,7 @@
 import argparse
 import glob
 import json
+from flask import Flask
 from pytorch_lightning import Trainer
 
 import torch
@@ -9,11 +10,13 @@ from enss import enssemble_prediction, generate_file_submission
 from evaluate import evaluate
 from model import RelevantDocClassifier
 import pandas as pd
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from transformers import AutoTokenizer, AutoConfig
 from pytorch_lightning.callbacks import ModelCheckpoint
 import pickle
 import os
-
+from data_generator import *
+from server import *
 
 class ColieePreprocessor:
     def __init__(self, tokenizer, max_seq_length) -> None:
@@ -58,6 +61,8 @@ if __name__=="__main__":
     parser.add_argument("--file_output_id", default="allEnss", type=str, help="Id of submission")
     # parser.add_argument("--civi_code_path", default="data/parsed_civil_code/en_civil_code.json", type=str, help="civil code path")
     parser.add_argument("--main_enss_path", default=None, type=str, help="main pred from monoT5")
+    parser.add_argument("--run_server", action="store_true", default=False, help="run demo server.")
+    parser.add_argument("--port", type=int, default=9002)
 
     opts = parser.parse_args()
     if opts.pretrained_checkpoint is not None and not opts.pretrained_checkpoint.endswith(".ckpt"):
@@ -77,7 +82,8 @@ if __name__=="__main__":
             config.save_pretrained(opts.log_dir)
             
         if os.path.exists(f"{opts.log_dir}/tokenizer_config.json"):
-            tokenizer = AutoTokenizer.from_pretrained(opts.log_dir, use_fast=True, config=AutoConfig.from_pretrained(opts.log_dir))
+            # tokenizer = AutoTokenizer.from_pretrained(opts.log_dir, use_fast=True, config=AutoConfig.from_pretrained(opts.log_dir))
+            tokenizer = AutoTokenizer.from_pretrained(opts.model_name_or_path, use_fast=True, max_seq_length=opts.max_seq_length)
         else:
             tokenizer = AutoTokenizer.from_pretrained(opts.model_name_or_path, use_fast=True, max_seq_length=opts.max_seq_length)
             tokenizer.save_pretrained(opts.log_dir)
@@ -136,7 +142,46 @@ if __name__=="__main__":
             data_sources.append(test2_loader)
         if test3_loader is not None:
             data_sources.append(test3_loader)
-    if opts.infer_train: data_sources.append(train_loader);
+    if opts.infer_train: data_sources.append(train_loader)
+    
+    # for server 
+    if opts.run_server:
+        
+        print(pretrained_checkpoint_list)
+        tfidf_vectorizer = pickle.load(open(f"{opts.data_dir}/tfidf_classifier.pkl", "rb"))
+
+        _all_data = json.load(open(f"{opts.data_dir}/all_data.json", 'rt', encoding='utf8'))
+        all_civil_code = list(zip( _all_data['c_keys'], _all_data['c_docs']))
+        all_query_jp = dict([(e['index'], (e['content'], e['result'])) for e in _all_data['dev_q'] + _all_data['test_q'] + _all_data['train_q']])
+        
+        eng_data = json.load(open(f'{opts.data_dir}/../../COLIEE2023statute_data-English/data_en_topk_150_r02_r03/all_data.json'))
+        all_civil_code_en = dict(list(zip( eng_data['c_keys'], eng_data['c_docs'])))
+        all_query_en = dict([(e['index'], (e['content'], e['result'])) for e in eng_data['dev_q'] + eng_data['test_q'] + eng_data['train_q']])
+        sentence2qid = dict([(q_info[0], qid) for qid, q_info in all_query_jp.items()])
+        
+        LLM_MODEL_NAME = 'google/flan-t5-xxl'
+        llm_model = AutoModelForSeq2SeqLM.from_pretrained(
+            LLM_MODEL_NAME, device_map="auto",  torch_dtype=torch.float16, load_in_8bit=True,
+        )
+        llm_tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_NAME)
+        
+        run_server(PORT=options.port, **{
+            'all_query_en': all_query_en, 
+            'sentence2qid': sentence2qid, 
+            'all_query_jp': all_query_jp, 
+            'all_civil_code': all_civil_code, 
+            'all_civil_code_en': all_civil_code_en,
+            'tfidf_vectorizer': tfidf_vectorizer,
+            'trainer': trainer,
+            'llm_model': llm_model,
+            'llm_tokenizer': llm_tokenizer,
+            'coliee_data_preprocessor': coliee_data_preprocessor,
+            'ckpt_path': ['settings/bert-base-japanese_top150-newE5Seq512L1e-5/combination2models/epoch=2-step=20414.ckpt',
+                          "settings/bert-base-japanese_top150-newE5Seq512L1e-5/combination2models/epoch=3-step=23439.ckpt"],
+            'model': model,
+        })
+        exit()
+        
 
     main_model_ckpt = None
     for data_loader in data_sources: 
