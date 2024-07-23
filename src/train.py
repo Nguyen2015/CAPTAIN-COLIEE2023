@@ -161,11 +161,11 @@ if __name__=="__main__":
         
         LLM_MODEL_NAME = 'google/flan-t5-xxl'
         llm_model = AutoModelForSeq2SeqLM.from_pretrained(
-            LLM_MODEL_NAME, device_map="auto",  torch_dtype=torch.float16, load_in_8bit=True,
+            LLM_MODEL_NAME, device_map="auto",  torch_dtype=torch.float16, load_in_8bit=True, cache_dir="../.cache/huggingface/hub",
         )
         llm_tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_NAME)
         
-        run_server(PORT=options.port, **{
+        run_server(PORT=opts.port, **{
             'all_query_en': all_query_en, 
             'sentence2qid': sentence2qid, 
             'all_query_jp': all_query_jp, 
