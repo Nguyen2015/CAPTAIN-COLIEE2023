@@ -15,10 +15,10 @@ def format_output(text):
     return cleantext.strip().lower()
 
 
-def llm_infer(model, tokenizer_, texts):
+def llm_infer(model, tokenizer_, texts, MAX_NEW_TOKEN=50):
     inputs = tokenizer_(texts, return_tensors="pt", padding='longest')[
         "input_ids"].cuda()
-    outputs = model.generate(inputs, max_new_tokens=256)
+    outputs = model.generate(inputs, max_new_tokens=MAX_NEW_TOKEN)
     raw_out = tokenizer_.batch_decode(outputs, skip_special_tokens=True)
     output_text = [format_output(e.replace(texts[i], ""))
                    for i, e in enumerate(raw_out)]
