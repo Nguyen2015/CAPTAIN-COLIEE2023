@@ -159,7 +159,14 @@ if __name__=="__main__":
         all_query_en = dict([(e['index'], (e['content'], e['result'])) for e in eng_data['dev_q'] + eng_data['test_q'] + eng_data['train_q']])
         sentence2qid = dict([(q_info[0], qid) for qid, q_info in all_query_jp.items()])
         
-        LLM_MODEL_NAME = 'google/flan-t5-xxl'
+        if os.path.exist("config/server.json"):
+            config_info = json.load(open("config/server.json"))
+            LLM_MODEL_NAME = config_info['LLM_MODEL_NAME']
+            ckpt_path = config_info['ckpt_path']
+        else:
+            LLM_MODEL_NAME = 'google/flan-t5-xxl'
+            ckpt_path = ['settings/bert-base-japanese-whole-word-masking_new2_top150-newE5Seq512L2e-5/models/epoch=2-step=20414.ckpt',
+                          "settings/bert-base-japanese-whole-word-masking_new2_top150-newE5Seq512L2e-5/models/epoch=3-step=23439.ckpt"],
         llm_model = AutoModelForSeq2SeqLM.from_pretrained(
             LLM_MODEL_NAME, device_map="auto",  torch_dtype=torch.float16, load_in_8bit=True, cache_dir="../.cache/huggingface/hub",
         )
@@ -176,8 +183,7 @@ if __name__=="__main__":
             'llm_model': llm_model,
             'llm_tokenizer': llm_tokenizer,
             'coliee_data_preprocessor': coliee_data_preprocessor,
-            'ckpt_path': ['settings/bert-base-japanese_top150-newE5Seq512L1e-5/combination2models/epoch=2-step=20414.ckpt',
-                          "settings/bert-base-japanese_top150-newE5Seq512L1e-5/combination2models/epoch=3-step=23439.ckpt"],
+            'ckpt_path': ckpt_path,
             'model': model,
         })
         exit()
