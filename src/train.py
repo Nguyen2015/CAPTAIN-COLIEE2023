@@ -247,7 +247,7 @@ if __name__=="__main__":
                                  key_scores="rank_c_scores",
                                  limited_prediction=100)
         # evaluate
-        input_test = f"data/COLIEE2023statute_data-English/train/riteval_{data_query_id}_en.xml"
+        input_test = f"{opts.data_dir}/../../COLIEE2023statute_data-English/train/riteval_{data_query_id}_en.xml"
         print(f"Eval: {opts.log_dir}/CAPTAIN.{opts.file_output_id}.{data_query_id}.tsv")
         if os.path.exists(input_test):
             evaluate(INPUT_TEST = input_test, 
@@ -273,7 +273,7 @@ if __name__=="__main__":
                                         key_scores="pred_c_scores")
 
                 # evaluate
-                input_test = f"data/COLIEE2023statute_data-English/train/riteval_{data_query_id}_en.xml"
+                input_test = f"{opts.data_dir}/../../COLIEE2023statute_data-English/train/riteval_{data_query_id}_en.xml"
                 if os.path.exists(input_test):
                     print(f"Eval: {output_file}")
                     evaluate(INPUT_TEST = input_test, 
