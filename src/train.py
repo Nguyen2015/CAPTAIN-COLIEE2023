@@ -159,7 +159,7 @@ if __name__=="__main__":
         all_query_en = dict([(e['index'], (e['content'], e['result'])) for e in eng_data['dev_q'] + eng_data['test_q'] + eng_data['train_q']])
         sentence2qid = dict([(q_info[0], qid) for qid, q_info in all_query_jp.items()])
         
-        if os.path.exist("config/server.json"):
+        if os.path.exists("config/server.json"):
             config_info = json.load(open("config/server.json"))
             LLM_MODEL_NAME = config_info['LLM_MODEL_NAME']
             ckpt_path = config_info['ckpt_path']
